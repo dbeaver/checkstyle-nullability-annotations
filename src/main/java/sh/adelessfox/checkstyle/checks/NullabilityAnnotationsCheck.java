@@ -1,4 +1,4 @@
-package sh.adelessfox.checkstyle;
+package sh.adelessfox.checkstyle.checks;
 
 import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
 import com.puppycrawl.tools.checkstyle.api.DetailAST;
@@ -7,11 +7,13 @@ import com.puppycrawl.tools.checkstyle.utils.CheckUtil;
 import com.puppycrawl.tools.checkstyle.utils.CommonUtil;
 
 import javax.lang.model.SourceVersion;
-import java.util.List;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Stream;
 
 public final class NullabilityAnnotationsCheck extends AbstractCheck {
+    private final Set<String> notNullNames = new HashSet<>();
+    private final Set<String> nullableNames = new HashSet<>();
+
     @Override
     public int[] getDefaultTokens() {
         return new int[]{
@@ -35,6 +37,16 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
     }
 
     @Override
+    public void init() {
+        if (notNullNames.isEmpty()) {
+            throw new IllegalArgumentException("Please specify 'notNullNames' with supported notnull annotations");
+        }
+        if (nullableNames.isEmpty()) {
+            throw new IllegalArgumentException("Please specify 'nullableNames' with supported nullable annotations");
+        }
+    }
+
+    @Override
     public void visitToken(DetailAST ast) {
         switch (ast.getType()) {
             case TokenTypes.CTOR_DEF -> visitConstructorDef(ast);
@@ -42,6 +54,16 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
             case TokenTypes.VARIABLE_DEF -> visitVariableDef(ast);
             default -> throw new IllegalArgumentException("Unexpected token: " + ast.getType());
         }
+    }
+
+    public void setNotNullNames(String[] notNullNames) {
+        this.notNullNames.clear();
+        Collections.addAll(this.notNullNames, notNullNames);
+    }
+
+    public void setNullableNames(String[] nullableNames) {
+        this.nullableNames.clear();
+        Collections.addAll(this.nullableNames, nullableNames);
     }
 
     private void visitConstructorDef(DetailAST ast) {
@@ -68,7 +90,7 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
     }
 
     private void validate(DetailAST origin, DetailAST modifiers, DetailAST type, DetailAST identifier) {
-        var annotations = getChildren(modifiers)
+        var annotations = getChildren(modifiers, TokenTypes.ANNOTATION)
             .map(child -> getFirstToken(child, TokenTypes.IDENT))
             .map(CheckUtil::extractQualifiedName)
             .toList();
@@ -83,10 +105,10 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
         boolean annotated = isAnnotated(annotations);
         if (SourceVersion.isKeyword(type)) {
             if (annotated) {
-                log(origin, "A primitive type ''{0}'' is annotated with a nullability annotation.", type);
+                log(origin, "nullability.annotated.primitive", type);
             }
         } else if (!annotated) {
-            log(origin, "A reference type ''{0}'' is missing a nullability annotation.", type);
+            log(origin, "nullability.non.annotated.reference", type);
         }
 
         // TODO Check for mixed NotNull and Nullable annotations
@@ -94,8 +116,13 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
         // TODO Make (qualified) annotation names configurable
     }
 
-    private static boolean isAnnotated(List<String> annotations) {
-        return annotations.contains("NotNull") || annotations.contains("Nullable");
+    private boolean isAnnotated(List<String> annotations) {
+        for (String annotation : annotations) {
+            if (notNullNames.contains(annotation) || nullableNames.contains(annotation)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Stream<DetailAST> getChildren(DetailAST ast, int type) {

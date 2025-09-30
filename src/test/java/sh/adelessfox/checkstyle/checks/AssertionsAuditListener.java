@@ -1,0 +1,101 @@
+package sh.adelessfox.checkstyle.checks;
+
+import com.puppycrawl.tools.checkstyle.AuditEventDefaultFormatter;
+import com.puppycrawl.tools.checkstyle.AuditEventFormatter;
+import com.puppycrawl.tools.checkstyle.DefaultLogger;
+import com.puppycrawl.tools.checkstyle.Definitions;
+import com.puppycrawl.tools.checkstyle.api.AuditEvent;
+import com.puppycrawl.tools.checkstyle.api.AuditListener;
+import com.puppycrawl.tools.checkstyle.api.SeverityLevel;
+import com.puppycrawl.tools.checkstyle.api.Violation;
+import org.junit.jupiter.api.Assertions;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.TreeMap;
+
+/**
+ * {@link AuditListener} that checks expected events occur.
+ *
+ * @author Phillip Webb
+ * @see <a href="https://github.com/spring-io/spring-javaformat/blob/main/spring-javaformat/spring-javaformat-checkstyle/src/test/java/io/spring/javaformat/checkstyle/AssertionsAuditListener.java">spring-javaformat</a>
+ */
+class AssertionsAuditListener implements AuditListener {
+    static final AuditEventFormatter FORMATTER = new AuditEventDefaultFormatter();
+
+    private final List<String> checks;
+    private final List<String> filenames = new ArrayList<>();
+    private final StringBuilder message = new StringBuilder();
+    private final Map<SeverityLevel, Integer> severityCounts = new TreeMap<>();
+
+    AssertionsAuditListener(List<String> checks) {
+        this.checks = checks;
+    }
+
+    @Override
+    public void auditStarted(AuditEvent event) {
+        recordLevel(event);
+        recordLocalizedMessage(DefaultLogger.AUDIT_STARTED_MESSAGE);
+        recordLevel(event);
+    }
+
+    @Override
+    public void auditFinished(AuditEvent event) {
+        recordLevel(event);
+        recordLocalizedMessage(DefaultLogger.AUDIT_FINISHED_MESSAGE);
+        recordMessage(this.severityCounts.toString());
+        int errors = this.severityCounts.getOrDefault(SeverityLevel.ERROR, 0);
+        recordMessage(errors + (errors == 1 ? " error" : " errors"));
+        System.out.println(this.filenames);
+        System.out.println(this.message);
+        this.checks.forEach(this::runCheck);
+    }
+
+    private void runCheck(String check) {
+        String description = this.filenames.toString();
+        if (check.startsWith("+")) {
+            Assertions.assertTrue(message.toString().contains(check.substring(1)), description);
+        } else if (check.startsWith("-")) {
+            Assertions.assertFalse(message.toString().contains(check.substring(1)), description);
+        }
+    }
+
+    @Override
+    public void fileStarted(AuditEvent event) {
+        this.filenames.add(event.getFileName());
+    }
+
+    @Override
+    public void fileFinished(AuditEvent event) {
+    }
+
+    @Override
+    public void addError(AuditEvent event) {
+        recordLevel(event);
+        if (event.getSeverityLevel() != SeverityLevel.IGNORE) {
+            recordMessage(FORMATTER.format(event));
+        }
+    }
+
+    @Override
+    public void addException(AuditEvent event, Throwable throwable) {
+        recordLevel(event);
+        recordLocalizedMessage(DefaultLogger.ADD_EXCEPTION_MESSAGE, event.getFileName());
+    }
+
+    private void recordLevel(AuditEvent event) {
+        this.severityCounts.compute(event.getSeverityLevel(), (level, count) -> (count == null ? 1 : count + 1));
+    }
+
+    private void recordLocalizedMessage(String message, String... args) {
+        recordMessage(new Violation(0, Definitions.CHECKSTYLE_BUNDLE, message, args, null, Violation.class, null)
+            .getViolation());
+    }
+
+    private void recordMessage(String message) {
+        this.message.append(message);
+        this.message.append("\n");
+    }
+
+}

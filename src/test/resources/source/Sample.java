@@ -1,7 +1,3 @@
-package sh.adelessfox.checkstyle;
-
-import sh.adelessfox.checkstyle.annotations.NotNull;
-
 import java.util.List;
 
 public class Sample {

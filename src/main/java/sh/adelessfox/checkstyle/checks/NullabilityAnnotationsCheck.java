@@ -118,16 +118,16 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
     private void validate(DetailAST ast) {
         var type = getFirstToken(ast, TokenTypes.TYPE);
         var modifiers = getFirstToken(ast, TokenTypes.MODIFIERS);
-        validate(ast, type, modifiers);
+        validate(type, modifiers);
     }
 
-    private void validate(DetailAST origin, DetailAST type, DetailAST modifiers) {
+    private void validate(DetailAST type, DetailAST modifiers) {
         var typeIdentifier = FullIdent.createFullIdent(type.getFirstChild()).getText();
         var annotationIdentifiers = getChildren(modifiers, TokenTypes.ANNOTATION)
             .map(child -> getFirstToken(child, TokenTypes.AT).getNextSibling())
             .map(ident -> FullIdent.createFullIdent(ident).getText())
             .toList();
-        validate(origin, typeIdentifier, annotationIdentifiers);
+        validate(type, typeIdentifier, annotationIdentifiers);
     }
 
     private void validate(DetailAST origin, String type, List<String> annotations) {

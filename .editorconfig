@@ -1,0 +1,11 @@
+root = true
+
+[*]
+ij_continuation_indent_size = 4
+
+[*.java]
+ij_java_use_single_class_imports = false
+ij_java_doc_do_not_wrap_if_one_line = true
+ij_java_method_parameters_new_line_after_left_paren = true
+ij_java_method_parameters_right_paren_on_new_line = true
+ij_java_method_parameters_wrap = on_every_item

@@ -1,0 +1,2 @@
+Sample7.java:2:5: Reference type 'String' is missing a nullability annotation. [NullabilityAnnotations]
++1 error

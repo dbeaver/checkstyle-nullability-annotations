@@ -93,6 +93,7 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
 
     private void visitMethodDef(DetailAST ast) {
         visitParameters(getFirstToken(ast, TokenTypes.PARAMETERS));
+        validate(ast);
     }
 
     private void visitVariableDef(DetailAST ast) {

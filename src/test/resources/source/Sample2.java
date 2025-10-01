@@ -8,6 +8,7 @@ public class Sample {
     public Sample(@NotNull String a, int b) {
     }
 
+    @NotNull
     public List<String> test(int a, @Nullable String b) {
         return List.of();
     }

@@ -4,13 +4,13 @@
 
     <groupId>sh.adelessfox</groupId>
     <artifactId>checkstyle-nullability-annotations</artifactId>
-    <version>1.0</version>
+    <version>1.1-SNAPSHOT</version>
 
     <scm>
         <connection>scm:git:https://github.com/ShadelessFox/checkstyle-nullability-annotations</connection>
         <developerConnection>scm:git:https://github.com/ShadelessFox/checkstyle-nullability-annotations</developerConnection>
         <url>https://github.com/ShadelessFox/checkstyle-nullability-annotations</url>
-        <tag>checkstyle-nullability-annotations-1.0</tag>
+        <tag>HEAD</tag>
     </scm>
 
     <properties>

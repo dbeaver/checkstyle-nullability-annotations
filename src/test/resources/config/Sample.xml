@@ -7,8 +7,8 @@
     <module name="TreeWalker">
         <module name="NullabilityAnnotationsCheck">
             <property name="tokens" value="CTOR_DEF, METHOD_DEF, VARIABLE_DEF"/>
-            <property name="notNullNames" value="NotNull"/>
-            <property name="nullableNames" value="Nullable"/>
+            <property name="nonnullClassNames" value="NotNull"/>
+            <property name="nullableClassNames" value="Nullable"/>
         </module>
     </module>
 </module>

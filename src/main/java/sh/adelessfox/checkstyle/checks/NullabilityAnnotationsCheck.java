@@ -1,30 +1,29 @@
 package sh.adelessfox.checkstyle.checks;
 
-import com.puppycrawl.tools.checkstyle.api.AbstractCheck;
-import com.puppycrawl.tools.checkstyle.api.DetailAST;
-import com.puppycrawl.tools.checkstyle.api.TokenTypes;
-import com.puppycrawl.tools.checkstyle.utils.CheckUtil;
-import com.puppycrawl.tools.checkstyle.utils.CommonUtil;
+import com.puppycrawl.tools.checkstyle.api.*;
 
-import javax.lang.model.SourceVersion;
+import javax.lang.model.*;
 import java.util.*;
-import java.util.stream.Stream;
+import java.util.stream.*;
 
 public final class NullabilityAnnotationsCheck extends AbstractCheck {
-    private final Set<String> notNullNames = new HashSet<>();
-    private final Set<String> nullableNames = new HashSet<>();
+    /** Specify classes that should be treated as "Nonnull" annotations. */
+    private final Set<String> nonnullClassNames = new HashSet<>();
+    private final Set<String> nonnullShortClassNames = new HashSet<>();
+
+    /** Specify classes that should be treated as "Nullable" annotations. */
+    private final Set<String> nullableClassNames = new HashSet<>();
+    private final Set<String> nullableShortClassNames = new HashSet<>();
 
     @Override
     public int[] getDefaultTokens() {
-        return new int[]{
-            TokenTypes.CTOR_DEF,
-            TokenTypes.METHOD_DEF
-        };
+        return getAcceptableTokens();
     }
 
     @Override
     public int[] getAcceptableTokens() {
         return new int[]{
+            TokenTypes.IMPORT,
             TokenTypes.CTOR_DEF,
             TokenTypes.METHOD_DEF,
             TokenTypes.VARIABLE_DEF,
@@ -33,17 +32,38 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
 
     @Override
     public int[] getRequiredTokens() {
-        return CommonUtil.EMPTY_INT_ARRAY;
+        return new int[]{
+            TokenTypes.IMPORT
+        };
     }
 
     @Override
     public void init() {
-        if (notNullNames.isEmpty()) {
-            throw new IllegalArgumentException("Please specify 'notNullNames' with supported notnull annotations");
+        if (nonnullClassNames.isEmpty()) {
+            throw new IllegalArgumentException(
+                "Please specify 'nonnullClassNames' with supported notnull annotations");
         }
-        if (nullableNames.isEmpty()) {
-            throw new IllegalArgumentException("Please specify 'nullableNames' with supported nullable annotations");
+        if (nullableClassNames.isEmpty()) {
+            throw new IllegalArgumentException(
+                "Please specify 'nullableClassNames' with supported nullable annotations");
         }
+
+        HashSet<String> retainedSet = new HashSet<>(nonnullClassNames.size());
+        retainedSet.addAll(nonnullClassNames);
+        retainedSet.retainAll(nullableClassNames);
+        if (!retainedSet.isEmpty()) {
+            throw new IllegalArgumentException("Conflicting nonnull and nullable class names: "
+                + String.join(", ", retainedSet));
+        }
+    }
+
+    @Override
+    public void beginTree(DetailAST rootAST) {
+        nonnullShortClassNames.clear();
+        nonnullShortClassNames.addAll(nonnullClassNames);
+
+        nullableShortClassNames.clear();
+        nullableShortClassNames.addAll(nullableClassNames);
     }
 
     @Override
@@ -52,18 +72,19 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
             case TokenTypes.CTOR_DEF -> visitConstructorDef(ast);
             case TokenTypes.METHOD_DEF -> visitMethodDef(ast);
             case TokenTypes.VARIABLE_DEF -> visitVariableDef(ast);
+            case TokenTypes.IMPORT -> visitImport(ast);
             default -> throw new IllegalArgumentException("Unexpected token: " + ast.getType());
         }
     }
 
-    public void setNotNullNames(String[] notNullNames) {
-        this.notNullNames.clear();
-        Collections.addAll(this.notNullNames, notNullNames);
+    public void setNonnullClassNames(String[] nonnullClassNames) {
+        this.nonnullClassNames.clear();
+        Collections.addAll(this.nonnullClassNames, nonnullClassNames);
     }
 
-    public void setNullableNames(String[] nullableNames) {
-        this.nullableNames.clear();
-        Collections.addAll(this.nullableNames, nullableNames);
+    public void setNullableClassNames(String[] nullableClassNames) {
+        this.nullableClassNames.clear();
+        Collections.addAll(this.nullableClassNames, nullableClassNames);
     }
 
     private void visitConstructorDef(DetailAST ast) {
@@ -74,56 +95,135 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
         visitParameters(getFirstToken(ast, TokenTypes.PARAMETERS));
     }
 
-    private void visitParameters(DetailAST parameters) {
-        getChildren(parameters, TokenTypes.PARAMETER_DEF).forEach(this::validate);
-    }
-
     private void visitVariableDef(DetailAST ast) {
         validate(ast);
     }
 
+    private void visitImport(DetailAST ast) {
+        String name = getImportedTypeCanonicalName(ast);
+        if (isStarImport(ast)) {
+            extendClassNamesFromPackage(name, nonnullClassNames, nonnullShortClassNames);
+            extendClassNamesFromPackage(name, nullableClassNames, nullableShortClassNames);
+        } else {
+            extendClassNamesFromCanonicalName(name, nonnullClassNames, nonnullShortClassNames);
+            extendClassNamesFromCanonicalName(name, nullableClassNames, nullableShortClassNames);
+        }
+    }
+
+    private void visitParameters(DetailAST parameters) {
+        getChildren(parameters, TokenTypes.PARAMETER_DEF).forEach(this::validate);
+    }
+
     private void validate(DetailAST ast) {
-        var modifiers = getFirstToken(ast, TokenTypes.MODIFIERS);
         var type = getFirstToken(ast, TokenTypes.TYPE);
-        var ident = getFirstToken(ast, TokenTypes.IDENT);
-        validate(ast, modifiers, type, ident);
+        var modifiers = getFirstToken(ast, TokenTypes.MODIFIERS);
+        validate(ast, type, modifiers);
     }
 
-    private void validate(DetailAST origin, DetailAST modifiers, DetailAST type, DetailAST identifier) {
-        var annotations = getChildren(modifiers, TokenTypes.ANNOTATION)
-            .map(child -> getFirstToken(child, TokenTypes.IDENT))
-            .map(CheckUtil::extractQualifiedName)
+    private void validate(DetailAST origin, DetailAST type, DetailAST modifiers) {
+        var typeIdentifier = FullIdent.createFullIdent(type.getFirstChild()).getText();
+        var annotationIdentifiers = getChildren(modifiers, TokenTypes.ANNOTATION)
+            .map(child -> getFirstToken(child, TokenTypes.AT).getNextSibling())
+            .map(ident -> FullIdent.createFullIdent(ident).getText())
             .toList();
-
-        var qualifiedType = CheckUtil.extractQualifiedName(type.getFirstChild());
-        var qualifiedName = identifier.getText();
-
-        validate(origin, annotations, qualifiedType, qualifiedName);
+        validate(origin, typeIdentifier, annotationIdentifiers);
     }
 
-    private void validate(DetailAST origin, List<String> annotations, String type, String identifier) {
-        boolean annotated = isAnnotated(annotations);
+    private void validate(DetailAST origin, String type, List<String> annotations) {
+        Optional<Match> match = matchingClassName(annotations);
         if (SourceVersion.isKeyword(type)) {
-            if (annotated) {
+            if (match.isPresent()) {
                 log(origin, "nullability.annotated.primitive", type);
             }
-        } else if (!annotated) {
+        } else if (match.isEmpty()) {
             log(origin, "nullability.non.annotated.reference", type);
         }
 
         // TODO Check for mixed NotNull and Nullable annotations
         // TODO Log the actual annotation used on a primitive
-        // TODO Make (qualified) annotation names configurable
     }
 
-    private boolean isAnnotated(List<String> annotations) {
-        for (String annotation : annotations) {
-            if (notNullNames.contains(annotation) || nullableNames.contains(annotation)) {
+    private Optional<Match> matchingClassName(List<String> classNames) {
+        for (String className : classNames) {
+            Optional<Match> result = matchingClassName(className);
+            if (result.isPresent()) {
+                return result;
+            }
+        }
+        return Optional.empty();
+    }
+
+    private Optional<Match> matchingClassName(String className) {
+        String shortName = className.substring(className.lastIndexOf('.') + 1);
+        if (nonnullClassNames.contains(className) || nonnullShortClassNames.contains(shortName)) {
+            return Optional.of(Match.NONNULL);
+        } else if (nullableClassNames.contains(className) || nullableShortClassNames.contains(shortName)) {
+            return Optional.of(Match.NULLABLE);
+        } else {
+            return Optional.empty();
+        }
+    }
+
+    private static void extendClassNamesFromCanonicalName(
+        String canonicalName,
+        Set<String> classNames,
+        Set<String> shortClassNames
+    ) {
+        if (classNames.contains(canonicalName)) {
+            shortClassNames.add(canonicalName.substring(canonicalName.lastIndexOf('.') + 1));
+        }
+    }
+
+    private static void extendClassNamesFromPackage(
+        String packageName,
+        Set<String> classNames,
+        Set<String> shortClassNames
+    ) {
+        for (String name : classNames) {
+            int index = name.lastIndexOf('.');
+            if (name.substring(0, index).equals(packageName)) {
+                shortClassNames.add(name.substring(index + 1));
+            }
+        }
+    }
+
+    private static boolean isStarImport(DetailAST importAst) {
+        for (DetailAST toVisit = importAst; toVisit != null; ) {
+            toVisit = getNextSubTreeNode(toVisit, importAst);
+            if (toVisit != null && toVisit.getType() == TokenTypes.STAR) {
                 return true;
             }
         }
         return false;
     }
+
+    private static String getImportedTypeCanonicalName(DetailAST importAst) {
+        StringBuilder canonicalNameBuilder = new StringBuilder(256);
+        for (DetailAST toVisit = importAst; toVisit != null; ) {
+            toVisit = getNextSubTreeNode(toVisit, importAst);
+            if (toVisit != null && toVisit.getType() == TokenTypes.IDENT) {
+                if (!canonicalNameBuilder.isEmpty()) {
+                    canonicalNameBuilder.append('.');
+                }
+                canonicalNameBuilder.append(toVisit.getText());
+            }
+        }
+        return canonicalNameBuilder.toString();
+    }
+
+    private static DetailAST getNextSubTreeNode(DetailAST currentNodeAst, DetailAST subTreeRootAst) {
+        DetailAST currentNode = currentNodeAst;
+        DetailAST toVisitAst = currentNode.getFirstChild();
+        while (toVisitAst == null) {
+            toVisitAst = currentNode.getNextSibling();
+            if (currentNode.getParent().equals(subTreeRootAst)) {
+                break;
+            }
+            currentNode = currentNode.getParent();
+        }
+        return toVisitAst;
+    }
+
 
     private Stream<DetailAST> getChildren(DetailAST ast, int type) {
         return getChildren(ast).filter(child -> child.getType() == type);
@@ -135,5 +235,10 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
 
     private DetailAST getFirstToken(DetailAST ast, int type) {
         return Objects.requireNonNull(ast.findFirstToken(type));
+    }
+
+    private enum Match {
+        NONNULL,
+        NULLABLE
     }
 }

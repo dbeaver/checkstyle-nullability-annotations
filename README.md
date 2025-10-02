@@ -1,8 +1,10 @@
 # Checkstyle Nullability Annotations
 
 A custom check for [Checkstyle](https://checkstyle.sourceforge.io/) that ensures
-that field types, method parameter types and method return types are annotated with
-annotation specified in the check's configuration.
+that field, method parameter and return types are annotated with
+annotations specified in the check's configuration.
+
+At the moment, check doesn't recognize annotations specified at the class level.
 
 ## Supported tokens
 

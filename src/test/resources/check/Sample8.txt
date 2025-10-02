@@ -1,0 +1,4 @@
++Sample8.java:2:20: Reference type 'String' is missing a nullability annotation. [NullabilityAnnotations]
++Sample8.java:3:13: Reference type 'String' is missing a nullability annotation. [NullabilityAnnotations]
++Sample8.java:6:9: Reference type 'String' is missing a nullability annotation. [NullabilityAnnotations]
++3 errors

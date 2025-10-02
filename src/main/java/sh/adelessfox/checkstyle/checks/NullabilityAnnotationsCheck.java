@@ -15,6 +15,9 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
     private final Set<String> nullableClassNames = new HashSet<>();
     private final Set<String> nullableShortClassNames = new HashSet<>();
 
+    /** Specify whether local variables should be checked. */
+    private boolean checkLocalVariables = true;
+
     @Override
     public int[] getDefaultTokens() {
         return getAcceptableTokens();
@@ -87,6 +90,10 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
         Collections.addAll(this.nullableClassNames, nullableClassNames);
     }
 
+    public void setCheckLocalVariables(boolean checkLocalVariables) {
+        this.checkLocalVariables = checkLocalVariables;
+    }
+
     private void visitConstructorDef(DetailAST ast) {
         visitParameters(getFirstToken(ast, TokenTypes.PARAMETERS));
     }
@@ -97,6 +104,9 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
     }
 
     private void visitVariableDef(DetailAST ast) {
+        if (!checkLocalVariables && isChildOf(ast, TokenTypes.METHOD_DEF)) {
+            return;
+        }
         validate(ast);
     }
 
@@ -236,6 +246,15 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
 
     private DetailAST getFirstToken(DetailAST ast, int type) {
         return Objects.requireNonNull(ast.findFirstToken(type));
+    }
+
+    private boolean isChildOf(DetailAST ast, int type) {
+        for (DetailAST c = ast.getParent(); c != null; c = c.getParent()) {
+            if (c.getType() == type) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private enum Match {

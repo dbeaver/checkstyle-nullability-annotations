@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE module PUBLIC
-        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
-        "https://checkstyle.org/dtds/configuration_1_3.dtd">
+    "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+    "https://checkstyle.org/dtds/configuration_1_3.dtd">
 <module name="Checker">
     <property name="charset" value="UTF-8"/>
     <module name="TreeWalker">
         <module name="NullabilityAnnotationsCheck">
             <property name="tokens" value="CTOR_DEF, METHOD_DEF, VARIABLE_DEF"/>
-            <property name="nonnullClassNames" value="NotNull"/>
-            <property name="nullableClassNames" value="Nullable"/>
+            <property name="nonnullClassNames" value="javax.annotation.Nonnull"/>
+            <property name="nullableClassNames" value="javax.annotation.Nullable"/>
         </module>
     </module>
 </module>

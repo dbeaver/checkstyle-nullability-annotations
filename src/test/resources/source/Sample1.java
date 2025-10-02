@@ -1,11 +1,12 @@
 import java.util.List;
+import javax.annotation.Nonnull;
 
 public class Sample {
     private final String test = "value";
     private String test2;
     private int test3;
 
-    public Sample(@NotNull String a, @NotNull int b) {
+    public Sample(@Nonnull String a, @Nonnull int b) {
     }
 
     public List<String> test(int a, String b) {

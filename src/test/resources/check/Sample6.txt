@@ -1,3 +1,3 @@
 +Sample6.java:7:23: Reference type 'String' is missing a nullability annotation. [NullabilityAnnotations]
-+Sample6.java:10:23: Reference type 'String' is missing a nullability annotation. [NullabilityAnnotations]
++Sample6.java:10:39: Reference type 'String' is missing a nullability annotation. [NullabilityAnnotations]
 +2 errors

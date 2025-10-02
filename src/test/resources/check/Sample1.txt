@@ -1,0 +1,8 @@
++Sample1.java:5:19: Reference type 'String' is missing a nullability annotation. [NullabilityAnnotations]
++Sample1.java:6:13: Reference type 'String' is missing a nullability annotation. [NullabilityAnnotations]
++Sample1.java:9:47: Primitive type 'int' is annotated with a nullability annotation. [NullabilityAnnotations]
++Sample1.java:12:12: Reference type 'List' is missing a nullability annotation. [NullabilityAnnotations]
++Sample1.java:12:37: Reference type 'String' is missing a nullability annotation. [NullabilityAnnotations]
++Sample1.java:17:15: Reference type 'String' is missing a nullability annotation. [NullabilityAnnotations]
++Sample1.java:17:25: Reference type 'List' is missing a nullability annotation. [NullabilityAnnotations]
++7 errors

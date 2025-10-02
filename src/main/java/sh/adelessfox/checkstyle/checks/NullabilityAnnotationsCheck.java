@@ -1,11 +1,13 @@
 package sh.adelessfox.checkstyle.checks;
 
 import com.puppycrawl.tools.checkstyle.api.*;
+import org.jspecify.annotations.*;
 
 import javax.lang.model.*;
 import java.util.*;
 import java.util.stream.*;
 
+@NullMarked
 public final class NullabilityAnnotationsCheck extends AbstractCheck {
     /** Specify classes that should be treated as "Nonnull" annotations. */
     private final Set<String> nonnullClassNames = new HashSet<>();
@@ -222,6 +224,7 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
         return canonicalNameBuilder.toString();
     }
 
+    @Nullable
     private static DetailAST getNextSubTreeNode(DetailAST currentNodeAst, DetailAST subTreeRootAst) {
         DetailAST currentNode = currentNodeAst;
         DetailAST toVisitAst = currentNode.getFirstChild();
@@ -240,6 +243,7 @@ public final class NullabilityAnnotationsCheck extends AbstractCheck {
         return getChildren(ast).filter(child -> child.getType() == type);
     }
 
+    @NullUnmarked
     private Stream<DetailAST> getChildren(DetailAST ast) {
         return Stream.iterate(ast.getFirstChild(), Objects::nonNull, DetailAST::getNextSibling);
     }
